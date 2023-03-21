@@ -8,9 +8,43 @@ const createAsync = promisify(bicycle.create)
 const deleteAsync = promisify(bicycle.del)
 const uid = bicycle.uid
 
+const dataSchema = {
+  type: 'object',
+  required: ['brand', 'color'],
+  additionalProperties: false,
+  properties: {
+    brand: { type: 'string' },
+    color: { type: 'string' }
+  }
+}
+const bodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['data'],
+  properties: {
+    data: dataSchema
+  }
+}
+
+const idSchema = {
+  id: { type: 'integer' }
+}
+
+const createResponseSchema = {
+  201: idSchema
+}
+
+const readResponseSchema = {
+  200: dataSchema
+}
 
 module.exports = async function (fastify, opts) {
-  fastify.get('/:id', async function (request, reply) {
+  fastify.get('/:id', {
+    schema: {
+      params: idSchema,
+      response: readResponseSchema
+    }
+  }, async function (request, reply) {
     const { id } = request.params
     try {
       return await readAsync(id)
@@ -22,25 +56,35 @@ module.exports = async function (fastify, opts) {
     }
   })
 
-  fastify.post('/', async function (request, reply) {
-    const newID = uid()
-    const { data } = request.body
-    try {
-      const id = await createAsync(newID, data)
-      reply.code(204)
-      return { id }
-    } catch (error) {
-      throw error
-    }
-  })
+  fastify.post('/',
+    {
+      schema: {
+        body: bodySchema,
+        response: createResponseSchema
+      }
+    }, async function (request, reply) {
+      const newID = uid()
+      const { data } = request.body
+      try {
+        const id = await createAsync(newID, data)
+        reply.code(201)
+        return { id }
+      } catch (error) {
+        throw error
+      }
+    })
 
-  fastify.post('/:id/update', async function (request, reply) {
+  fastify.post('/:id/update', {
+    schema: {
+      params: idSchema,
+      body: bodySchema
+    }
+  }, async function (request, reply) {
     const { id } = request.params
     const { data } = request.body
     try {
       await updateAsync(id, data)
       reply.code(204)
-      return {}
     } catch (error) {
       if (error.message === 'not found') {
         throw fastify.httpErrors.notFound()
@@ -49,7 +93,12 @@ module.exports = async function (fastify, opts) {
     }
   })
 
-  fastify.put('/:id', async function (request, reply) {
+  fastify.put('/:id', {
+    schema: {
+      params: idSchema,
+      body: bodySchema
+    }
+  }, async function (request, reply) {
     const { id } = request.params
     const { data } = request.body
     try {
@@ -67,16 +116,22 @@ module.exports = async function (fastify, opts) {
   })
 
 
-  fastify.delete('/:id', async function (request, reply) {
-    const { id } = request.params
-    try {
-      await deleteAsync(id)
-      reply.code(204)
-    } catch (error) {
-      if (error.message === 'not found') {
-        throw fastify.httpErrors.notFound()
+  fastify.delete('/:id',
+    {
+      schema: {
+        params: idSchema
       }
-      throw error
     }
-  })
+    , async function (request, reply) {
+      const { id } = request.params
+      try {
+        await deleteAsync(id)
+        reply.code(204)
+      } catch (error) {
+        if (error.message === 'not found') {
+          throw fastify.httpErrors.notFound()
+        }
+        throw error
+      }
+    })
 }
