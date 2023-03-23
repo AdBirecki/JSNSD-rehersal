@@ -24,7 +24,7 @@ const get = promisify((url, cb) => {
     err.method = 'GET'
     cb(err)
   })
-  req.setTimeout(1500000)
+  req.setTimeout(150000)
 })
 
 const body = async (res) => {
